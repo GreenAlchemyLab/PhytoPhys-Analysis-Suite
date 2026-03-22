@@ -1,0 +1,96 @@
+# ==============================================================================
+# PROJECT: PLANT PHYSIOLOGY - SAP NUTRIENT ANALYSIS (LaquaTwin)
+# AUTHOR:  Gabriele
+# DATE:    2026
+# SYSTEM:  Time-stream visualization for NO3- and K+ in plant sap
+# ==============================================================================
+
+library(tidyverse)
+library(readxl)
+library(ggpubr)
+
+# --- 1. SETUP E CARICAMENTO ---
+# Colloca il tuo file Excel nella cartella "data" del progetto
+file_path <- "data/sap_analysis.xlsx"
+foglio    <- "Sheet1" # Modifica con il nome del tuo foglio
+
+if (!file.exists(file_path)) {
+  stop("Errore: File non trovato in 'data/sap_analysis.xlsx'")
+}
+
+dati_grezzi <- read_excel(file_path, sheet = foglio)
+
+# Rinominiamo le prime 4 colonne per garantire la compatibilità con lo script
+# Assicurati che l'ordine sia: Data, Tesi (o Trattamento), NO3, K
+colnames(dati_grezzi)[1:4] <- c("Date", "Treatment", "NO3", "K")
+
+# --- 2. DATA CLEANING & PIVOTING ---
+dati_clean <- dati_grezzi %>%
+  mutate(
+    Date = as.Date(Date), 
+    Treatment = as.factor(Treatment),
+    # Converte eventuali virgole in punti e trasforma in numerico
+    across(c(NO3, K), ~as.numeric(gsub(",", ".", as.character(.))))
+  ) %>%
+  # Trasformiamo in formato 'long' per facilitare il plotting ciclico
+  pivot_longer(cols = c(NO3, K), names_to = "Element", values_to = "PPM") %>%
+  drop_na(PPM)
+
+# --- 3. ELABORAZIONE E GRAFICA ---
+plot_list <- list()
+
+for (el in c("NO3", "K")) {
+  
+  # Filtro per elemento e calcolo medie/errori
+  stats_data <- dati_clean %>% 
+    filter(Element == el) %>% 
+    group_by(Treatment, Date) %>% 
+    summarise(
+      M = mean(PPM), 
+      S = sd(PPM), 
+      .groups = 'drop'
+    )
+  
+  # Definizione dinamica degli step dell'asse Y
+  breaks_y <- if(el == "NO3") seq(0, 10000, by = 500) else seq(0, 10000, by = 250)
+  
+  # Creazione del grafico
+  p <- ggplot(stats_data, aes(x = Date, y = M, color = Treatment, fill = Treatment)) +
+    # Area di errore (Deviazione Standard)
+    geom_ribbon(aes(ymin = M - S, ymax = M + S), alpha = 0.1, color = NA) +
+    geom_line(linewidth = 1.2) +
+    geom_point(size = 3, shape = 21, color = "white", stroke = 1) +
+    # Estetica
+    labs(
+      title = paste("Andamento nutrienti:", el), 
+      y = paste(el, "Concentration (ppm)"), 
+      x = ""
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid.minor = element_blank(), 
+      axis.line = element_line(color = "black"),
+      legend.position = "bottom"
+    ) +
+    # Palette di colori accessibile
+    scale_color_brewer(palette = "Set1") +
+    scale_fill_brewer(palette = "Set1") +
+    scale_x_date(date_breaks = "1 week", date_labels = "%d %b") +
+    # Doppia scala per facilitare la lettura dei valori puntuali
+    scale_y_continuous(breaks = breaks_y, sec.axis = sec_axis(~., breaks = breaks_y))
+  
+  plot_list[[el]] <- p
+}
+
+# --- 4. EXPORT FINALE ---
+final_plot <- ggarrange(
+  plotlist = plot_list, 
+  ncol = 1, 
+  nrow = 2, 
+  common.legend = TRUE, 
+  legend = "bottom"
+)
+
+print(final_plot)
+
+ggsave("Nutrient_Analysis_LaquaTwin.png", final_plot, width = 10, height = 12, dpi = 300)
