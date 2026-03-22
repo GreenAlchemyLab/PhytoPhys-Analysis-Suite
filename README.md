@@ -21,17 +21,3 @@ Il sistema segue una pipeline standardizzata per garantire l'integrità del dato
 1.  **Data Cleaning:** Lo script corregge i separatori decimali e filtra i valori anomali (outlier) utilizzando il metodo dell'**Interquartile Range ($IQR$)**.
 2.  **Statistica Temporale:** Per ogni data di rilievo viene eseguita un'**ANOVA** seguita dal test di **Tukey HSD** per l'assegnazione automatica delle lettere di significatività.
 3.  **Rendering Grafico:** Generazione di file `.png` (300 DPI) con temi minimali e palette di colori ottimizzate per la distinzione delle tesi.
-
----
-
-## 📂 Struttura della Repository
-Organizza i tuoi file come segue per garantire il corretto funzionamento dei percorsi relativi:
-
-```text
-📁 PhytoPhys-Analysis-Suite
- ├── 📁 data          <-- Inserisci qui i tuoi file Excel (.xlsx)
- ├── 📁 output        <-- Qui verranno salvati i grafici (.png)
- ├── 📄 .gitignore     <-- Per escludere i dati privati dall'upload
- ├── 📜 plant_nutrients.R
- ├── 📜 plant_multiparameter.R
- └── 📜 plant_chlorophyll.R
